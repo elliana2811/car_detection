@@ -25,12 +25,12 @@ jobs:
 
     - name: Build and push Airflow image
       run: |
-        docker build -t elliana2811/airflow:data_pipeline ./data_pipeline
-        docker push elliana2811/airflow:data_pipeline
+        docker build -t elliana2811/airflow:data_pipeline ./data_pipeline/flow
+        docker push elliana2811/airflow:data_pipeline/flow
 
     - name: Build and push Streamlit image
       run: |
-        docker build -t elliana2811/streamlit:serving_pipeline .e/serving_pipeline
+        docker build -t elliana2811/streamlit:serving_pipeline ./serving_pipeline
         docker push elliana2811/streamlit:serving_pipeline
 
     - name: Deploy to server
