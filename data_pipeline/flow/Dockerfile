@@ -1,4 +1,4 @@
-FROM apache/airflow:2.10.5
+FROM apache/airflow:2.10.5-python3.10
 
 # Switch to root to install OS-level packages
 USER root
