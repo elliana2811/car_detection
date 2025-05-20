@@ -1,0 +1,109 @@
+name: Airflow CI/CD on Self-Hosted Runner
+
+on:
+  push:
+    branches:
+      - ci-cd-test 
+
+env:
+  # THAY THẾ BẰNG TÊN IMAGE VÀ DOCKER COMPOSE FILE CỦA BẠN
+  IMAGE_NAME: elliana2811/car_detection
+  DOCKER_COMPOSE_FILE: docker-compose.prod.yml # Tên file docker-compose trong repo
+
+jobs:
+  build-and-push-image:
+    name: Build and Push Airflow Docker Image
+    runs-on: self-hosted # Chỉ định chạy trên self-hosted runner
+    
+    outputs:
+      image_tag_sha: ${{ steps.meta.outputs.version }} 
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        # Cần thiết cho việc build image hiệu quả và cache
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short # Tag với Git SHA ngắn (ví dụ: abc1234)
+            type=raw,value=latest,enable={{is_default_branch}} # Tag 'latest' chỉ cho nhánh mặc định
+
+      - name: Build and push Docker image
+        id: build_and_push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./data_pipeline/flow # Đặt context là thư mục chứa Dockerfile
+          file: ./data_pipeline/flow/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha # Sử dụng cache từ GitHub Actions
+          cache-to: type=gha,mode=max # Lưu cache lại cho lần build sau
+
+  deploy-airflow:
+    name: Deploy Airflow Services
+    runs-on: self-hosted # Chạy trên cùng self-hosted runner (nơi triển khai Airflow)
+    needs: build-and-push-image # Chạy sau khi job build-and-push-image hoàn thành
+    
+    steps:
+      - name: Checkout Repository (để có docker-compose.yaml)
+        uses: actions/checkout@v4
+
+      # (TÙY CHỌN) Tạo file .env từ GitHub Secret nếu cần
+      # Bước này hữu ích nếu file .env không có sẵn trên runner 
+      # hoặc bạn muốn quản lý nó tập trung qua secrets.
+      # - name: Create .env file from secret
+      #   if: secrets.ENV_FILE_CONTENT
+      #   run: echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
+      #   shell: bash # Hoặc 'pwsh' cho PowerShell trên Windows runner
+
+      - name: Ensure .env file exists
+        # Bước này kiểm tra và nhắc nhở nếu file .env chưa có trên runner
+        # Bạn cần đảm bảo file .env với các cấu hình cần thiết (đặc biệt là FERNET_KEY)
+        # đã được đặt thủ công trên runner tại thư mục gốc của repo đã checkout.
+        run: |
+          if [ ! -f .env ]; then
+            echo "ERROR: .env file not found in the checkout directory on the runner."
+            echo "Please ensure the .env file with necessary configurations (especially AIRFLOW__CORE__FERNET_KEY)"
+            echo "is manually placed in the root of the checked-out repository on the self-hosted runner."
+            exit 1
+          fi
+        shell: bash # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
+
+      - name: Pull latest pushed image
+        # Sử dụng tag 'latest' để đơn giản hóa việc kéo image mới nhất
+        run: docker pull ${{ env.IMAGE_NAME }}:latest 
+
+      - name: Restart Airflow services using Docker Compose
+        run: |
+          echo "Restarting Airflow services with the new image..."
+          # Lệnh này sẽ cập nhật các services airflow-webserver, airflow-scheduler, và airflow-init
+          # để sử dụng image mới vừa được pull (do docker-compose.yaml của bạn
+          # vẫn đang sử dụng "build: ." hoặc sẽ được thay đổi để dùng image từ registry).
+          # --remove-orphans: Xóa các container không còn được định nghĩa.
+          
+          # QUAN TRỌNG: Để lệnh này hoạt động đúng với image từ registry,
+          # bạn cần sửa đổi docker-compose.yaml để các service Airflow sử dụng
+          # "image: ${{ env.IMAGE_NAME }}:latest" thay vì "build: ."
+          # Xem hướng dẫn ở phần "3. Cập nhật docker-compose.yaml"
+          
+          docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans airflow-webserver airflow-scheduler airflow-init
+          
+          # Nếu bạn muốn khởi động lại toàn bộ stack (bao gồm postgres nếu có thay đổi):
+          # docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans
+          
+          echo "Airflow services deployment attempted."
+        shell: bash # Hoặc 'pwsh' cho PowerShell trên Windows runner
