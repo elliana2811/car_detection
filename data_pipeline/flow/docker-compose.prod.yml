@@ -22,8 +22,7 @@ services:
 
   # Webserver service for Airflow
   airflow-webserver:
-    build:
-     image: elliana2811/car_dection:latest
+    image: elliana2811/car_dection:latest
     environment:
       # Các biến Airflow cốt lõi sẽ được lấy từ tệp .env
       # Một số biến có thể cần tham chiếu trực tiếp để Docker Compose thực hiện thay thế
@@ -66,8 +65,7 @@ services:
 
   # Scheduler service for Airflow
   airflow-scheduler:
-    build:
-       image: elliana2811/car_dection:latest
+    image: elliana2811/car_dection:latest
     environment:
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${DB_HOST}:${DB_PORT}/${POSTGRES_DB}
@@ -103,8 +101,7 @@ services:
       - ./.env
 
   airflow-init:
-    build:
-      image: elliana2811/car_dection:latest
+    image: elliana2811/car_dection:latest
     environment:
       # Biến Airflow cốt lõi
       AIRFLOW__CORE__EXECUTOR: ${AIRFLOW__CORE__EXECUTOR}
