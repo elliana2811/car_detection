@@ -18,7 +18,7 @@ services:
     ports:
       - "${DB_PORT}:${DB_PORT}" # Sử dụng biến DB_PORT từ .env
     env_file:
-      - ../../.env
+      - ./.env
 
   # Webserver service for Airflow
   airflow-webserver:
@@ -61,7 +61,7 @@ services:
       airflow-init:
        condition: service_completed_successfully
     env_file: # Đảm bảo tệp .env được load
-      - ../../.env
+      - ./.env
 
   # Scheduler service for Airflow
   airflow-scheduler:
@@ -98,7 +98,7 @@ services:
       postgres:
         condition: service_healthy
     env_file: # Đảm bảo tệp .env được load
-      - ../../.env
+      - ./.env
 
   airflow-init:
     image: elliana2811/car_dection:latest
@@ -180,7 +180,7 @@ services:
       postgres:
         condition: service_healthy
     env_file: # Đảm bảo tệp .env được load
-      - ../../.env
+      - ./.env
 
 volumes:
   postgres-db-volume:
