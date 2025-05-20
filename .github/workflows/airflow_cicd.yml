@@ -90,9 +90,9 @@ jobs:
           }
         shell: powershell
 
-      - name: Pull latest pushed image
-        run: docker pull ${{ env.IMAGE_NAME }}:latest 
-        shell: powershell 
+      - name: Pull specific SHA tagged image
+        run: docker pull ${{ env.IMAGE_NAME }}:${{ needs.build-and-push-image.outputs.image_tag_sha }}
+        shell: powershell
 
       - name: Restart Airflow services using Docker Compose
         run: |
