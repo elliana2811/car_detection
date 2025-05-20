@@ -61,37 +61,43 @@ jobs:
       - name: Checkout Repository (để có docker-compose.yaml)
         uses: actions/checkout@v4
 
-      # (TÙY CHỌN) Tạo file .env từ GitHub Secret nếu cần
-      # - name: Create .env file from secret
-      #   if: secrets.ENV_FILE_CONTENT
-      #   run: echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
-      #   shell: pwsh # Sử dụng pwsh hoặc powershell cho Windows
-
-      - name: Ensure .env file exists
+      # Bước này sẽ tạo file .env từ secret bạn đã cấu hình
+      - name: Create .env file from GitHub Secret
+        # Điều kiện 'if' này đảm bảo step chỉ chạy nếu secret ENV_FILE_CONTENT tồn tại
+        if: secrets.ENV_FILE_CONTENT
         run: |
-          # Sử dụng cú pháp PowerShell để kiểm tra file
-          $envFilePath = ".env" # Đường dẫn tương đối đến file .env
-          # Kiểm tra xem tệp có tồn tại và là một tệp tin (không phải thư mục)
+          # Sử dụng PowerShell để ghi nội dung (có thể nhiều dòng) của secret vào file .env
+          # Lệnh Set-Content sẽ ghi đè file nếu đã tồn tại.
+          Set-Content -Path ".env" -Value "${{ secrets.ENV_FILE_CONTENT }}"
+          Write-Host ".env file created successfully from secret."
+        shell: powershell # Quan trọng: sử dụng PowerShell cho runner Windows
+
+      # Bước này để xác minh rằng file .env đã được tạo thành công từ secret
+      # Hoặc bạn có thể xóa hẳn step "Ensure .env file exists" cũ.
+      - name: Verify .env file existence (after creation from secret)
+        run: |
+          $envFilePath = ".env"
           if (-not (Test-Path $envFilePath -PathType Leaf)) { 
-            Write-Error "ERROR: .env file not found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
-            Write-Host "Please ensure the .env file with necessary configurations (especially AIRFLOW__CORE__FERNET_KEY)"
-            Write-Host "is manually placed in the root of the checked-out repository on the self-hosted runner."
-            exit 1 # Thoát với mã lỗi để job thất bại
+            Write-Error "ERROR: .env file was NOT created from secret or not found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
+            Write-Host "Please check if the 'ENV_FILE_CONTENT' secret is correctly set in GitHub repository settings and the previous step ran successfully."
+            exit 1
           } else {
-            Write-Host ".env file found at '$($envFilePath)'."
+            Write-Host ".env file verified successfully at '$($envFilePath)' after creation from secret."
+            # Tùy chọn: In ra một phần nhỏ của file để kiểm tra (cẩn thận với thông tin nhạy cảm nếu log công khai)
+            # Get-Content -Path $envFilePath -TotalCount 5 | ForEach-Object { Write-Host $_ }
           }
-        shell: powershell # Đảm bảo shell là powershell (hoặc pwsh nếu PowerShell Core đã được cài và trong PATH)
+        shell: powershell
 
       - name: Pull latest pushed image
         # Sử dụng tag 'latest' để đơn giản hóa việc kéo image mới nhất
         # Nhớ kiểm tra lại logic tag 'latest' với nhánh default của bạn
         run: docker pull ${{ env.IMAGE_NAME }}:latest 
-        shell: powershell # Thêm shell cho nhất quán, mặc dù docker pull chạy tốt trên các shell
+        shell: powershell # Thống nhất sử dụng powershell
 
       - name: Restart Airflow services using Docker Compose
         run: |
           Write-Host "Restarting Airflow services with the new image..."
-          # Đảm bảo docker-compose.yaml đã được cập nhật để sử dụng image từ registry
+          # Đảm bảo docker-compose.prod.yml đã được cập nhật để sử dụng image từ registry
           docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans airflow-webserver airflow-scheduler airflow-init
           Write-Host "Airflow services deployment attempted."
-        shell: powershell # Thêm shell cho nhất quán
+        shell: powershell # Thống nhất sử dụng powershell
