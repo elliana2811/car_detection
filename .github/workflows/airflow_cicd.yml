@@ -68,22 +68,22 @@ jobs:
         # Kiểm tra biến môi trường đó
         if: ${{ env.SECRET_CONTENT_EXISTS }} 
         run: |
-          Write-Host "Attempting to create .env file from secret..."
-          # Sử dụng here-string (@" "@) để đảm bảo nội dung được ghi nguyên bản
-          # và sử dụng biến môi trường $env:ENV_CONTENT
+          Write-Host "Attempting to create .env file in ./data_pipeline/flow/.env from secret..."
+          # Tạo thư mục nếu chưa tồn tại (đề phòng)
+          New-Item -ItemType Directory -Force -Path "./data_pipeline/flow"
           @"
           ${{ env.ENV_CONTENT }}
-          "@ | Set-Content -Path ".env" -NoNewline -Encoding UTF8
-          Write-Host ".env file created successfully from secret."
+          "@ | Set-Content -Path "./data_pipeline/flow/.env" -NoNewline -Encoding UTF8
+          Write-Host ".env file created successfully in ./data_pipeline/flow/.env from secret."
         shell: powershell
 
       # Bước này để xác minh rằng file .env đã được tạo thành công
       - name: Verify .env file existence
         run: |
-          $envFilePath = ".env"
+          $envFilePath = "./data_pipeline/flow/.env" # << ĐIỀU CHỈNH ĐƯỜNG DẪN
           if (-not (Test-Path $envFilePath -PathType Leaf)) { 
-            Write-Error "ERROR: .env file was NOT found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
-            Write-Host "This could be because the 'ENV_FILE_CONTENT' secret is not set or the file was not created correctly."
+            Write-Error "ERROR: .env file was NOT found at '$($envFilePath)' (current directory: $(Get-Location))."
+            Write-Host "Please check if the 'ENV_FILE_CONTENT' secret is correctly set and the previous step ran successfully."
             exit 1
           } else {
             Write-Host ".env file verified successfully at '$($envFilePath)'."
