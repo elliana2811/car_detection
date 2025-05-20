@@ -62,19 +62,23 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create .env file from GitHub Secret
-        # Gán secret vào một biến môi trường cho step này
-        env:
-          SECRET_CONTENT_EXISTS: ${{ secrets.ENV_FILE_CONTENT }}
-        # Kiểm tra biến môi trường đó
-        if: ${{ env.SECRET_CONTENT_EXISTS }} 
+        # Không cần biến trung gian nếu bạn chỉ dùng nó một lần
+        # env:
+        #   SECRET_CONTENT_EXISTS: ${{ secrets.ENV_FILE_CONTENT }} # Không cần dòng này nữa
+        if: ${{ secrets.ENV_FILE_CONTENT }} # Kiểm tra trực tiếp secret
         run: |
           Write-Host "Attempting to create .env file in ./data_pipeline/flow/.env from secret..."
-          # Tạo thư mục nếu chưa tồn tại (đề phòng)
+          # Tạo thư mục nếu chưa tồn tại
           New-Item -ItemType Directory -Force -Path "./data_pipeline/flow"
           @"
-          ${{ env.ENV_CONTENT }}
+          ${{ secrets.ENV_FILE_CONTENT }} # <--- SỬA LỖI: Tham chiếu trực tiếp secret ở đây
           "@ | Set-Content -Path "./data_pipeline/flow/.env" -NoNewline -Encoding UTF8
           Write-Host ".env file created successfully in ./data_pipeline/flow/.env from secret."
+
+          # --- CHỈ DÙNG ĐỂ DEBUG - HÃY XÓA DÒNG NÀY TRONG MÔI TRƯỜNG THẬT ---
+          Write-Host "Verifying .env file content (FOR DEBUGGING ONLY):"
+          Get-Content -Path "./data_pipeline/flow/.env"
+          # ------------------------------------------------------------------
         shell: powershell
 
       # Bước này để xác minh rằng file .env đã được tạo thành công
