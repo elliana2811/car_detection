@@ -90,6 +90,12 @@ jobs:
           }
         shell: powershell
 
+      - name: Log in to Docker Hub (on self-hosted runner)
+        uses: docker/login-action@v2 # Hoặc v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Pull specific SHA tagged image
         run: docker pull ${{ env.IMAGE_NAME }}:${{ needs.build-and-push-image.outputs.image_tag_sha }}
         shell: powershell
