@@ -80,7 +80,7 @@ jobs:
             echo "is manually placed in the root of the checked-out repository on the self-hosted runner."
             exit 1
           fi
-        shell: pwsh # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
+        shell: powershell # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
 
       - name: Pull latest pushed image
         # Sử dụng tag 'latest' để đơn giản hóa việc kéo image mới nhất
@@ -105,4 +105,4 @@ jobs:
           # docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans
           
           echo "Airflow services deployment attempted."
-        shell: bash # Hoặc 'pwsh' cho PowerShell trên Windows runner
+        shell: powershell # Hoặc 'pwsh' cho PowerShell trên Windows runner
