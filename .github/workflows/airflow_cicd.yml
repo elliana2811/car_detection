@@ -62,47 +62,36 @@ jobs:
         uses: actions/checkout@v4
 
       # (TÙY CHỌN) Tạo file .env từ GitHub Secret nếu cần
-      # Bước này hữu ích nếu file .env không có sẵn trên runner 
-      # hoặc bạn muốn quản lý nó tập trung qua secrets.
       # - name: Create .env file from secret
       #   if: secrets.ENV_FILE_CONTENT
       #   run: echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
-      #   shell: bash # Hoặc 'pwsh' cho PowerShell trên Windows runner
+      #   shell: pwsh # Sử dụng pwsh hoặc powershell cho Windows
 
       - name: Ensure .env file exists
-        # Bước này kiểm tra và nhắc nhở nếu file .env chưa có trên runner
-        # Bạn cần đảm bảo file .env với các cấu hình cần thiết (đặc biệt là FERNET_KEY)
-        # đã được đặt thủ công trên runner tại thư mục gốc của repo đã checkout.
         run: |
-          if [ ! -f .env ]; then
-            echo "ERROR: .env file not found in the checkout directory on the runner."
-            echo "Please ensure the .env file with necessary configurations (especially AIRFLOW__CORE__FERNET_KEY)"
-            echo "is manually placed in the root of the checked-out repository on the self-hosted runner."
-            exit 1
-          fi
-        shell: powershell # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
+          # Sử dụng cú pháp PowerShell để kiểm tra file
+          $envFilePath = ".env" # Đường dẫn tương đối đến file .env
+          # Kiểm tra xem tệp có tồn tại và là một tệp tin (không phải thư mục)
+          if (-not (Test-Path $envFilePath -PathType Leaf)) { 
+            Write-Error "ERROR: .env file not found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
+            Write-Host "Please ensure the .env file with necessary configurations (especially AIRFLOW__CORE__FERNET_KEY)"
+            Write-Host "is manually placed in the root of the checked-out repository on the self-hosted runner."
+            exit 1 # Thoát với mã lỗi để job thất bại
+          } else {
+            Write-Host ".env file found at '$($envFilePath)'."
+          }
+        shell: powershell # Đảm bảo shell là powershell (hoặc pwsh nếu PowerShell Core đã được cài và trong PATH)
 
       - name: Pull latest pushed image
         # Sử dụng tag 'latest' để đơn giản hóa việc kéo image mới nhất
+        # Nhớ kiểm tra lại logic tag 'latest' với nhánh default của bạn
         run: docker pull ${{ env.IMAGE_NAME }}:latest 
+        shell: powershell # Thêm shell cho nhất quán, mặc dù docker pull chạy tốt trên các shell
 
       - name: Restart Airflow services using Docker Compose
         run: |
-          echo "Restarting Airflow services with the new image..."
-          # Lệnh này sẽ cập nhật các services airflow-webserver, airflow-scheduler, và airflow-init
-          # để sử dụng image mới vừa được pull (do docker-compose.yaml của bạn
-          # vẫn đang sử dụng "build: ." hoặc sẽ được thay đổi để dùng image từ registry).
-          # --remove-orphans: Xóa các container không còn được định nghĩa.
-          
-          # QUAN TRỌNG: Để lệnh này hoạt động đúng với image từ registry,
-          # bạn cần sửa đổi docker-compose.yaml để các service Airflow sử dụng
-          # "image: ${{ env.IMAGE_NAME }}:latest" thay vì "build: ."
-          # Xem hướng dẫn ở phần "3. Cập nhật docker-compose.yaml"
-          
+          Write-Host "Restarting Airflow services with the new image..."
+          # Đảm bảo docker-compose.yaml đã được cập nhật để sử dụng image từ registry
           docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans airflow-webserver airflow-scheduler airflow-init
-          
-          # Nếu bạn muốn khởi động lại toàn bộ stack (bao gồm postgres nếu có thay đổi):
-          # docker-compose -f ${{ env.DOCKER_COMPOSE_FILE }} up -d --remove-orphans
-          
-          echo "Airflow services deployment attempted."
-        shell: powershell # Hoặc 'pwsh' cho PowerShell trên Windows runner
+          Write-Host "Airflow services deployment attempted."
+        shell: powershell # Thêm shell cho nhất quán
