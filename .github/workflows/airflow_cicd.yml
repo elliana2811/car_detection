@@ -8,7 +8,7 @@ on:
 env:
   # THAY THẾ BẰNG TÊN IMAGE VÀ DOCKER COMPOSE FILE CỦA BẠN
   IMAGE_NAME: elliana2811/car_detection
-  DOCKER_COMPOSE_FILE: docker-compose.prod.yml # Tên file docker-compose trong repo
+  DOCKER_COMPOSE_FILE: ./data_pipeline/flow/docker-compose.prod.yml # Tên file docker-compose trong repo
 
 jobs:
   build-and-push-image:
