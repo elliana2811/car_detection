@@ -80,7 +80,7 @@ jobs:
             echo "is manually placed in the root of the checked-out repository on the self-hosted runner."
             exit 1
           fi
-        shell: bash # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
+        shell: pwsh # Hoặc 'pwsh' và lệnh PowerShell tương đương cho Windows
 
       - name: Pull latest pushed image
         # Sử dụng tag 'latest' để đơn giản hóa việc kéo image mới nhất
