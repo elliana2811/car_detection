@@ -62,28 +62,26 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create .env file from GitHub Secret
-        # Điều kiện 'if' này đảm bảo step chỉ chạy nếu secret ENV_FILE_CONTENT tồn tại và không rỗng
-        if: ${{ secrets.ENV_FILE_CONTENT != '' && secrets.ENV_FILE_CONTENT != null }} # <<---- ĐÃ SỬA LỖI
-        # Hoặc đơn giản hơn nếu bạn chỉ muốn kiểm tra sự tồn tại của secret (nó sẽ là chuỗi rỗng nếu không được đặt):
-        # if: ${{ secrets.ENV_FILE_CONTENT }} 
-        # Tuy nhiên, kiểm tra khác rỗng và null sẽ an toàn hơn.
+        # Step này sẽ chỉ chạy nếu secret 'ENV_FILE_CONTENT' được đặt và có giá trị.
+        # Nếu secret không được đặt (hoặc là chuỗi rỗng), điều kiện if sẽ là false.
+        if: ${{ secrets.ENV_FILE_CONTENT }} # <<---- SỬA LẠI THÀNH DẠNG ĐƠN GIẢN NÀY
         run: |
-          # Sử dụng PowerShell để ghi nội dung (có thể nhiều dòng) của secret vào file .env
           Write-Host "Attempting to create .env file from secret..."
           Set-Content -Path ".env" -Value "${{ secrets.ENV_FILE_CONTENT }}"
           Write-Host ".env file created successfully from secret."
         shell: powershell 
 
-      # Bước này để xác minh rằng file .env đã được tạo thành công từ secret
-      - name: Verify .env file existence (after creation from secret)
+      # Bước này để xác minh rằng file .env đã được tạo thành công
+      # (hoặc nó đã tồn tại sẵn nếu secret không được đặt và bước trên bị bỏ qua)
+      - name: Verify .env file existence
         run: |
           $envFilePath = ".env"
           if (-not (Test-Path $envFilePath -PathType Leaf)) { 
-            Write-Error "ERROR: .env file was NOT created or not found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
-            Write-Host "Please check if the 'ENV_FILE_CONTENT' secret is correctly set in GitHub repository settings and the previous step ran successfully (check its 'if' condition)."
+            Write-Error "ERROR: .env file was NOT found at '$($envFilePath)' in the checkout directory (current directory: $(Get-Location))."
+            Write-Host "This could be because the 'ENV_FILE_CONTENT' secret is not set or the file was not created correctly."
             exit 1
           } else {
-            Write-Host ".env file verified successfully at '$($envFilePath)' after creation from secret."
+            Write-Host ".env file verified successfully at '$($envFilePath)'."
           }
         shell: powershell
 
