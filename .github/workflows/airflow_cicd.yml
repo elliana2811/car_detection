@@ -62,12 +62,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create .env file from GitHub Secret
-        if: ${{ secrets.ENV_FILE_CONTENT }}
+        # Gán secret vào một biến môi trường cho step này
         env:
-          # Gán secret vào một biến môi trường để dễ sử dụng trong here-string
-          # Điều này giúp tránh các vấn đề về dấu ngoặc kép hoặc ký tự đặc biệt trong nội dung secret
-          # khi nó được nội suy trực tiếp trong lệnh Set-Content.
-          ENV_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+          SECRET_CONTENT_EXISTS: ${{ secrets.ENV_FILE_CONTENT }}
+        # Kiểm tra biến môi trường đó
+        if: ${{ env.SECRET_CONTENT_EXISTS }} 
         run: |
           Write-Host "Attempting to create .env file from secret..."
           # Sử dụng here-string (@" "@) để đảm bảo nội dung được ghi nguyên bản
@@ -76,7 +75,7 @@ jobs:
           ${{ env.ENV_CONTENT }}
           "@ | Set-Content -Path ".env" -NoNewline -Encoding UTF8
           Write-Host ".env file created successfully from secret."
-        shell: powershell
+        shell: powershell 
 
       # Bước này để xác minh rằng file .env đã được tạo thành công
       - name: Verify .env file existence
