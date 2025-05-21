@@ -106,7 +106,7 @@ jobs:
 
           # Ghi lại toàn bộ nội dung đã cập nhật vào file .env
           # Sử dụng Set-Content để ghi đè toàn bộ file với mảng các dòng mới
-          Set-Content -Path $envFilePath -Value $newLines -Encoding utf8 -NoNewline
+          ($newLines -join "`n" + "`n") | Out-File -FilePath $envFilePath -Encoding utf8 -NoNewline
           Write-Host ".env file has been created/updated at $envFilePath. IMAGE_TAG set to '$imageTagValue' (if provided)."
         shell: powershell
 
