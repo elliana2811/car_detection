@@ -61,20 +61,53 @@ jobs:
       - name: Checkout Repository (để có docker-compose.yaml)
         uses: actions/checkout@v4
 
-      - name: Create .env file from GitHub Secret
-        # Gán secret vào một biến môi trường cho step này
+      - name: Create or Update .env file with IMAGE_TAG
+        # Step này sẽ tạo file .env từ secret (nếu có) VÀ thêm/cập nhật IMAGE_TAG từ build output.
+        if: ${{ always() }} # Luôn chạy step này để xử lý cả trường hợp secret có hoặc không
         env:
-          SECRET_CONTENT_EXISTS: ${{ secrets.ENV_FILE_CONTENT }}
-        # Kiểm tra biến môi trường đó
-        if: ${{ env.SECRET_CONTENT_EXISTS }} 
+          # Nội dung từ secret (có thể rỗng nếu secret không được đặt)
+          ENV_CONTENT_FROM_SECRET: ${{ secrets.ENV_FILE_CONTENT }}
+          # Tag SHA từ output của job 'build-and-push-image'
+          BUILT_IMAGE_TAG: ${{ needs.build-and-push-image.outputs.image_tag_sha }}
         run: |
-          Write-Host "Attempting to create .env file in ./data_pipeline/flow/.env from secret..."
-          # Tạo thư mục nếu chưa tồn tại (đề phòng)
-          New-Item -ItemType Directory -Force -Path "./data_pipeline/flow"
-          @"
-          ${{ env.SECRET_CONTENT_EXISTS }}
-          "@ | Set-Content -Path "./data_pipeline/flow/.env" -NoNewline -Encoding UTF8
-          Write-Host ".env file created successfully in ./data_pipeline/flow/.env from secret."
+          $envFilePath = "./data_pipeline/flow/.env"
+          $imageTagName = "IMAGE_TAG"
+          $imageTagValue = $env:BUILT_IMAGE_TAG 
+
+          if (-not $imageTagValue) {
+            Write-Warning "WARNING: BUILT_IMAGE_TAG is empty. IMAGE_TAG will not be set dynamically in .env file."
+            # Trong trường hợp này, nếu .env từ secret có IMAGE_TAG thì nó sẽ được giữ nguyên,
+            # hoặc nếu không có thì IMAGE_TAG sẽ không được thêm vào.
+            # Nếu bạn muốn mặc định là 'latest' trong trường hợp này, bạn có thể đặt:
+            # $imageTagValue = "latest" 
+          }
+
+          # Lấy nội dung từ secret làm cơ sở
+          $baseContent = $env:ENV_CONTENT_FROM_SECRET
+          
+          # Chuyển đổi nội dung cơ sở thành một mảng các dòng để dễ xử lý
+          # Tách dòng bằng `n (newline), cũng có thể cần xử lý `r`n (CRLF)
+          $lines = $baseContent -split "`r?`n"
+
+          # Lọc bỏ dòng IMAGE_TAG hiện có (nếu có) từ nội dung secret
+          $newLines = $lines | Where-Object { $_ -notmatch "^${imageTagName}=" }
+
+          # Thêm dòng IMAGE_TAG mới với giá trị từ build (nếu $imageTagValue có giá trị)
+          if ($imageTagValue) {
+            $newLines += "${imageTagName}=${imageTagValue}"
+          }
+          
+          # Tạo thư mục đích nếu chưa tồn tại
+          $targetDir = Split-Path -Path $envFilePath
+          if (-not (Test-Path $targetDir)) {
+            New-Item -ItemType Directory -Force -Path $targetDir
+            Write-Host "Created directory: $targetDir"
+          }
+
+          # Ghi lại toàn bộ nội dung đã cập nhật vào file .env
+          # Sử dụng Set-Content để ghi đè toàn bộ file với mảng các dòng mới
+          Set-Content -Path $envFilePath -Value $newLines -Encoding utf8 -NoNewline
+          Write-Host ".env file has been created/updated at $envFilePath. IMAGE_TAG set to '$imageTagValue' (if provided)."
         shell: powershell
 
       # Bước này để xác minh rằng file .env đã được tạo thành công
